@@ -1,29 +1,30 @@
-# Compiled Object files
-*.slo
-*.lo
-*.o
+syntax:glob
 *.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
 *.exe
-*.out
-*.app
+*.exp
+*.pdb
+*.dll
+*.user
+*.aps
+*.pch
+*.vspscc
+*_i.c
+*_p.c
+*.ncb
+*.suo
+*.tlb
+*.tlh
+*.bak
+*.cache
+*.ilk
+*.log
+*.zip
+[Dd]ebug*/
+*.lib
+*.sbr
+Thumbs.db
+[Ll]ib/
+[Rr]elease*/
+[Tt]est[Rr]esults/
+_UpgradeReport_Files/
+_ReSharper.*/
