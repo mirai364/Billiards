@@ -90,27 +90,42 @@ public:
 
 struct BallData {
 	MeshData		Ball;						// ボール構造体
-	double			X, Y, Z;					// ボール座標
-	double			rX, rY, rZ;					// ボール回転方向
+	D3DXVECTOR3		Pos;						// ボール座標
+	D3DXVECTOR3		Rot;						// ボール回転方向
 	double			Ball_Weight;				// ボール重さ
 	double			Ball_Radius;				// ボール半径
-	double			sX, sY, sZ;					// ボール速度
+	D3DXVECTOR3		Speed;						// ボール速度
 	double			Coefficient_Restitution;	// 反射係数
 	double			Attenuation_Coefficient;	// 減衰係数
 	
 
 public:
 	BallData() {			/* constructor	*/
-		X = 0; Y = 0; Z = 0;
+		Pos.x = 0; Pos.y = 0; Pos.z = 0;
 		Ball_Weight = 170;		// 170g
 		Ball_Radius = 28.55;	// 直径57.1mm
-		sX = 0; sY = 0; sZ = 0;
-		rX = 0; rY = 0; rZ = 0;
+		Rot.x = 0; Rot.y = 0; Rot.z = 0;
+		Speed.x = 0; Speed.y = 0; Speed.z = 0;
 		Coefficient_Restitution = 0.99;
 		Attenuation_Coefficient = 1;
 	}
-	BOOL LoadData(char* file) {
+	BOOL LoadData(char* file, D3DXVECTOR3 _Pos) {
 		Ball.LoadMeshData(file);
+		Pos = _Pos;
+		return TRUE;
+	}
+	BOOL DrawingData() {
+		// モデルの配置
+		D3DXMATRIXA16 matWorld, matPosition;
+		D3DXMatrixIdentity(&matWorld);
+
+		// モデルの移動
+		D3DXMatrixTranslation(&matPosition, Pos.x, Pos.y, Pos.z);
+		D3DXMatrixMultiply(&matWorld, &matWorld, &matPosition);
+
+		// ワールドマトリックスをDirectXに設定
+		g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
+		Ball.RenderMesh();
 		return TRUE;
 	}
 
@@ -231,16 +246,16 @@ BOOL InitDirect3D(HWND hWnd)
 	/*Mesh Load*/
 	Table.LoadMeshData(".\\table.x");
 	Shop.LoadMeshData(".\\Shop.x");
-	Ball[0].LoadData(".\\1.x");
-	Ball[1].LoadData(".\\2.x");
-	Ball[2].LoadData(".\\3.x");
-	Ball[3].LoadData(".\\4.x");
-	Ball[4].LoadData(".\\5.x");
-	Ball[5].LoadData(".\\6.x");
-	Ball[6].LoadData(".\\7.x");
-	Ball[7].LoadData(".\\8.x");
-	Ball[8].LoadData(".\\9.x");
-	hand.LoadData(".\\hand.x");
+	Ball[0].LoadData(".\\1.x", D3DXVECTOR3(0.795f, 0.976f,    0.0f));
+	Ball[1].LoadData(".\\2.x", D3DXVECTOR3(0.925f, 0.976f, -0.072f));
+	Ball[2].LoadData(".\\3.x", D3DXVECTOR3(1.055f, 0.976f,    0.0f));
+	Ball[3].LoadData(".\\4.x", D3DXVECTOR3(0.925f, 0.976f,  0.072f));
+	Ball[4].LoadData(".\\5.x", D3DXVECTOR3( 0.86f, 0.976f, -0.036f));
+	Ball[5].LoadData(".\\6.x", D3DXVECTOR3( 0.86f, 0.976f,  0.036f));
+	Ball[6].LoadData(".\\7.x", D3DXVECTOR3( 0.99f, 0.976f, -0.036f));
+	Ball[7].LoadData(".\\8.x", D3DXVECTOR3( 0.99f, 0.976f,  0.036f));
+	Ball[8].LoadData(".\\9.x", D3DXVECTOR3(0.925f, 0.976f,    0.0f));
+	hand.LoadData(".\\hand.x", D3DXVECTOR3( -1.0f, 0.976f,    0.0f));
 
 	return TRUE;
 }
@@ -300,24 +315,31 @@ BOOL SetupMatrices()
 
 	// World Matrix.
 	//D3DXMatrixRotationY(&matWorld, timeGetTime() / 1000.0f);
-	D3DXMatrixRotationY(&matWorld, 270*M_PI/180);
-	g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
+	//D3DXMatrixRotationY(&matWorld, (float)(270*M_PI/180));
+	//g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
 
 	// Camera.
-	vEyePt.x = 0.0f;
+	//vEyePt.x = 0.0f - 1.9f;
+	//vEyePt.y = 1.2f;
+	//vEyePt.z = 0.0f;
+
+	float theta = fmod((timeGetTime())/30.0f, 360.0f) * M_PI / 180.0f;
+
+	vEyePt.x = 1.9f*cos(theta);
 	vEyePt.y = 1.2f;
-	vEyePt.z = 0.0f - 1.9f;
+	vEyePt.z = 1.9f*sin(theta);
+
 	vLookatPt.x = 0.0f;
 	vLookatPt.y = 0.976f;
-	vLookatPt.z = -1.0f;
+	vLookatPt.z = 0.0f;
 	vUpVec.x = 0.0f;
-	vUpVec.y = 1.0f;
+	vUpVec.y = 1.5f;
 	vUpVec.z = 0.0f;
 	D3DXMatrixLookAtLH(&matView, &vEyePt, &vLookatPt, &vUpVec);
 	g_pd3dDevice->SetTransform(D3DTS_VIEW, &matView);
 
 	// Projection Matrix.
-	D3DXMatrixPerspectiveFovLH(&matProj, 60 * M_PI / 180, (float)SCREEN_WIDTH/ SCREEN_HEIGHT, 0.5f, 100.0f);
+	D3DXMatrixPerspectiveFovLH(&matProj, (float)(60 * M_PI / 180), SCREEN_WIDTH/ SCREEN_HEIGHT, 0.5f, 100.0f);
 	g_pd3dDevice->SetTransform(D3DTS_PROJECTION, &matProj);
 
 	return TRUE;
@@ -342,11 +364,19 @@ BOOL RenderDirect3D()
 
 	SetupMatrices();
 
+	// モデルの配置
+	D3DXMATRIXA16 matWorld, matPosition;
+	D3DXMatrixIdentity(&matWorld);
+	// モデルの移動
+	D3DXMatrixTranslation(&matPosition, 0.0f, 0.0f, 0.0f);
+	D3DXMatrixMultiply(&matWorld, &matWorld, &matPosition);
+	// ワールドマトリックスをDirectXに設定
+	g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
 	Shop.RenderMesh();
 	Table.RenderMesh();
 
 	for (int i = 0; i < 9; i++) {
-		Ball[i].Ball.RenderMesh();
+		Ball[i].DrawingData();
 	}
 	hand.Ball.RenderMesh();
 
