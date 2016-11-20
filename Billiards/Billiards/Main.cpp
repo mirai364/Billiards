@@ -1,10 +1,12 @@
 #define _USE_MATH_DEFINES
+#define IKD_EPSIRON 0.00001f	// 誤差
 
 #include <stdio.h>
 #include <windows.h>
 #include <d3d9.h>
 #include <d3dx9.h>
 #include <math.h>
+#include <iostream>
 
 #pragma once
 #pragma comment(lib,"winmm.lib")
@@ -12,6 +14,58 @@
 const double Gravity = 9.8;
 const int SCREEN_WIDTH = 1680;	// ウィンドウの幅
 const int SCREEN_HEIGHT = 768;	// ウィンドウの高さ
+
+
+///////////////////////////////////////////////////
+// パーティクル衝突後速度位置算出関数
+//   pColliPos_A : 衝突中のパーティクルAの中心位置
+//   pVelo_A     : 衝突の瞬間のパーティクルAの速度
+//   pColliPos_B : 衝突中のパーティクルBの中心位置
+//   pVelo_B     : 衝突の瞬間のパーティクルBの速度
+//   weight_A    : パーティクルAの質量
+//   weight_B    : パーティクルBの質量
+//   res_A       : パーティクルAの反発率
+//   res_B       : パーティクルBの反発率
+//   time        : 反射後の移動時間
+//   pOut_pos_A  : パーティクルAの反射後位置
+//   pOut_velo_A : パーティクルAの反射後速度ベクトル
+//   pOut_pos_B  : パーティクルBの反射後位置
+//   pOut_velo_B : パーティクルBの反射後速度ベクトル
+
+bool CalcParticleColliAfterPos(
+	D3DXVECTOR3 *pColliPos_A, D3DXVECTOR3 *pVelo_A,
+	D3DXVECTOR3 *pColliPos_B, D3DXVECTOR3 *pVelo_B,
+	FLOAT weight_A, FLOAT weight_B,
+	FLOAT res_A, FLOAT res_B,
+	FLOAT time,
+	D3DXVECTOR3 *pOut_pos_A, D3DXVECTOR3 *pOut_velo_A,
+	D3DXVECTOR3 *pOut_pos_B, D3DXVECTOR3 *pOut_velo_B
+	)
+{
+	FLOAT TotalWeight = weight_A + weight_B; // 質量の合計
+	FLOAT RefRate = (1 + res_A*res_B); // 反発率
+	D3DXVECTOR3 C = *pColliPos_B - *pColliPos_A; // 衝突軸ベクトル
+	D3DXVec3Normalize(&C, &C);
+	FLOAT Dot = D3DXVec3Dot(&(*pVelo_A - *pVelo_B), &C); // 内積算出
+	D3DXVECTOR3 ConstVec = RefRate*Dot / TotalWeight * C; // 定数ベクトル
+
+	// 衝突後速度ベクトルの算出
+	*pOut_velo_A = -weight_B * ConstVec + *pVelo_A;
+	*pOut_velo_B = weight_A * ConstVec + *pVelo_B;
+
+	// 衝突後位置の算出
+	*pOut_pos_A = *pColliPos_A + time * (*pOut_velo_A);
+	*pOut_pos_B = *pColliPos_B + time * (*pOut_velo_B);
+
+	if (D3DXVec3Length(&(*pOut_pos_A - *pOut_pos_B)) < (0.02855 * 2 - IKD_EPSIRON)) {
+		D3DXVECTOR3 A = *pOut_velo_A;		D3DXVec3Normalize(&A, &A); //　単位速度ベクトル
+		D3DXVECTOR3 B = *pOut_velo_B;		D3DXVec3Normalize(&B, &B); //　単位速度ベクトル
+		*pOut_pos_A = *pColliPos_A + 0.02855 * A;
+		*pOut_pos_B = *pColliPos_B + 0.02855 * B;
+	}
+
+	return true;
+}
 
 //-----------------------------------------------------------------
 //    Grobal Variables.
@@ -95,19 +149,19 @@ struct BallData {
 	double			Ball_Weight;				// ボール重さ
 	double			Ball_Radius;				// ボール半径
 	D3DXVECTOR3		Speed;						// ボール速度
-	double			Coefficient_Restitution;	// 反射係数
+	double			Coefficient_Restitution;	// 反発係数
 	double			Attenuation_Coefficient;	// 減衰係数
 	
 
 public:
 	BallData() {			/* constructor	*/
 		Pos.x = 0; Pos.y = 0; Pos.z = 0;
-		Ball_Weight = 170;		// 170g
-		Ball_Radius = 28.55;	// 直径57.1mm
+		Ball_Weight = 0.00170;		// 170g
+		Ball_Radius = 0.02855;	// 直径57.1mm
 		Rot.x = 0; Rot.y = 0; Rot.z = 0;
 		Speed.x = 0; Speed.y = 0; Speed.z = 0;
 		Coefficient_Restitution = 0.99;
-		Attenuation_Coefficient = 1;
+		Attenuation_Coefficient = 0.99;
 	}
 	BOOL LoadData(char* file, D3DXVECTOR3 _Pos) {
 		Ball.LoadMeshData(file);
@@ -115,9 +169,21 @@ public:
 		return TRUE;
 	}
 	BOOL DrawingData() {
+		if (Pos.x >= 1.65 || Pos.x <= -1.65)
+			ReflectBallPosX();
+		if (Pos.z >= 0.85 || Pos.z <= -0.85)
+			ReflectBallPosZ();
+		UpdateBallPos();
+
 		// モデルの配置
-		D3DXMATRIXA16 matWorld, matPosition;
+		D3DXMATRIXA16 matWorld, matPosition, matRotation;
 		D3DXMatrixIdentity(&matWorld);
+
+		// モデルの回転
+		float theta = fmod((timeGetTime()), 360.0f) * M_PI;
+		D3DXMatrixRotationAxis(&matRotation, &Rot, D3DXVec3Length(&Speed) * theta);
+		D3DXMatrixMultiply(&matWorld, &matWorld, &matRotation);
+		
 
 		// モデルの移動
 		D3DXMatrixTranslation(&matPosition, Pos.x, Pos.y, Pos.z);
@@ -127,6 +193,42 @@ public:
 		g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
 		Ball.RenderMesh();
 		return TRUE;
+	}
+	VOID UpdateBallPos() {
+		//if (!(Speed.x == 0 && Speed.y == 0 && Speed.z == 0)) {
+			Pos += Speed;
+			Speed = Speed * Attenuation_Coefficient;
+			SetRotate();
+		//}
+	}
+	VOID ReflectBallPosX() {
+		Speed.x = -Speed.x * Coefficient_Restitution;
+		Speed.z = Speed.z * Coefficient_Restitution;
+		if (Pos.x >= 1.65) {
+			Pos.x = 1.62;
+		}
+		else if (Pos.x <= -1.65) {
+			Pos.x = -1.62;
+		}
+		SetRotate();
+	}
+	VOID ReflectBallPosZ() {
+		Speed.z = -Speed.z * Coefficient_Restitution;
+		Speed.x = Speed.x * Coefficient_Restitution;
+		if (Pos.z >= 0.85) {
+			Pos.z = 0.82;
+		}
+		else if (Pos.z <= -0.85) {
+			Pos.z = -0.82;
+		}
+		SetRotate();
+	}
+	VOID SetRotate() {
+		D3DXVECTOR3		Rot_t;
+		D3DXVec3Normalize(&Rot_t, &Speed);
+		Rot.x = Rot_t.z;
+		Rot.y = -Rot_t.y;
+		Rot.z = -Rot_t.x;
 	}
 
 }Ball[9],hand;
@@ -256,6 +358,7 @@ BOOL InitDirect3D(HWND hWnd)
 	Ball[7].LoadData(".\\8.x", D3DXVECTOR3( 0.99f, 0.976f,  0.036f));
 	Ball[8].LoadData(".\\9.x", D3DXVECTOR3(0.925f, 0.976f,    0.0f));
 	hand.LoadData(".\\hand.x", D3DXVECTOR3( -1.0f, 0.976f,    0.0f));
+	hand.Speed.x += 0.1f;
 
 	return TRUE;
 }
@@ -326,7 +429,7 @@ BOOL SetupMatrices()
 	float theta = fmod((timeGetTime())/30.0f, 360.0f) * M_PI / 180.0f;
 
 	vEyePt.x = 1.9f*cos(theta);
-	vEyePt.y = 1.2f;
+	vEyePt.y = 1.4f;
 	vEyePt.z = 1.9f*sin(theta);
 
 	vLookatPt.x = 0.0f;
@@ -375,10 +478,26 @@ BOOL RenderDirect3D()
 	Shop.RenderMesh();
 	Table.RenderMesh();
 
+
 	for (int i = 0; i < 9; i++) {
 		Ball[i].DrawingData();
 	}
-	hand.Ball.RenderMesh();
+	hand.DrawingData();
+	
+	for (int i = 0; i < 9; i++) {
+		if (D3DXVec3Length(&(hand.Pos - Ball[i].Pos)) <= (0.02855 * 2)) {
+			CalcParticleColliAfterPos(&hand.Pos, &hand.Speed, &Ball[i].Pos, &Ball[i].Speed, hand.Ball_Weight, Ball[i].Ball_Weight, hand.Coefficient_Restitution, Ball[i].Coefficient_Restitution, 0.001f, &hand.Pos, &hand.Speed, &Ball[i].Pos, &Ball[i].Speed);
+		}
+	}
+	for (int i = 0; i < 9; i++) {
+		for (int j = i+1; j < 9; j++) {
+			if (D3DXVec3Length(&(Ball[i].Pos - Ball[j].Pos)) <= (0.02855 * 2)) {
+				CalcParticleColliAfterPos(&Ball[i].Pos, &Ball[i].Speed, &Ball[j].Pos, &Ball[j].Speed, Ball[i].Ball_Weight, Ball[j].Ball_Weight, Ball[i].Coefficient_Restitution, Ball[j].Coefficient_Restitution, 0.001f, &Ball[i].Pos, &Ball[i].Speed, &Ball[j].Pos, &Ball[j].Speed);
+			}
+		}
+	}
+	
+	
 
 	g_pd3dDevice->EndScene();
 
