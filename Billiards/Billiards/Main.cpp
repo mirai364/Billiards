@@ -180,10 +180,11 @@ public:
 		D3DXMatrixIdentity(&matWorld);
 
 		// ƒ‚ƒfƒ‹‚Ì‰ñ“]
-		float theta = fmod((timeGetTime()), 360.0f) * M_PI;
-		D3DXMatrixRotationAxis(&matRotation, &Rot, D3DXVec3Length(&Speed) * theta);
-		D3DXMatrixMultiply(&matWorld, &matWorld, &matRotation);
-		
+		float theta = fmod((timeGetTime()) / 30.0f, 360.0f) * M_PI / 180.0f;
+		D3DXVECTOR3		Rot_t;
+		D3DXVec3Normalize(&Rot_t, &Rot);
+		D3DXMatrixRotationAxis(&matRotation, &Rot_t, Ball_Radius * theta);
+		D3DXMatrixMultiply(&matWorld, &matWorld, &matRotation);		
 
 		// ƒ‚ƒfƒ‹‚ÌˆÚ“®
 		D3DXMatrixTranslation(&matPosition, Pos.x, Pos.y, Pos.z);
@@ -196,39 +197,42 @@ public:
 	}
 	VOID UpdateBallPos() {
 		//if (!(Speed.x == 0 && Speed.y == 0 && Speed.z == 0)) {
-			Pos += Speed;
+			Pos += Speed + Rot/10.0f;
 			Speed = Speed * Attenuation_Coefficient;
-			SetRotate();
+			Rot = Rot * Attenuation_Coefficient;
+			//SetRotate();
 		//}
 	}
 	VOID ReflectBallPosX() {
 		Speed.x = -Speed.x * Coefficient_Restitution;
 		Speed.z = Speed.z * Coefficient_Restitution;
+		Rot.x = -Rot.x * 0.5f;
+		Rot.z = Rot.z * Coefficient_Restitution;
 		if (Pos.x >= 1.65) {
 			Pos.x = 1.62;
 		}
 		else if (Pos.x <= -1.65) {
 			Pos.x = -1.62;
 		}
-		SetRotate();
+		//SetRotate();
 	}
 	VOID ReflectBallPosZ() {
 		Speed.z = -Speed.z * Coefficient_Restitution;
 		Speed.x = Speed.x * Coefficient_Restitution;
+		Rot.z = -Rot.z * 0.5f;
+		Rot.x = Rot.x * Coefficient_Restitution;
 		if (Pos.z >= 0.85) {
 			Pos.z = 0.82;
 		}
 		else if (Pos.z <= -0.85) {
 			Pos.z = -0.82;
 		}
-		SetRotate();
+		//SetRotate();
 	}
 	VOID SetRotate() {
-		D3DXVECTOR3		Rot_t;
-		D3DXVec3Normalize(&Rot_t, &Speed);
-		Rot.x = Rot_t.z;
-		Rot.y = -Rot_t.y;
-		Rot.z = -Rot_t.x;
+		Rot.x = -Speed.z;
+		Rot.y = Speed.y;
+		Rot.z = Speed.x;
 	}
 
 }Ball[9],hand;
@@ -358,7 +362,7 @@ BOOL InitDirect3D(HWND hWnd)
 	Ball[7].LoadData(".\\8.x", D3DXVECTOR3( 0.99f, 0.976f,  0.036f));
 	Ball[8].LoadData(".\\9.x", D3DXVECTOR3(0.925f, 0.976f,    0.0f));
 	hand.LoadData(".\\hand.x", D3DXVECTOR3( -1.0f, 0.976f,    0.0f));
-	hand.Speed.x += 0.1f;
+	hand.Speed.x += 0.1f; hand.Rot.x += 0.02f; hand.Rot.z += 0.03f;
 
 	return TRUE;
 }
@@ -487,12 +491,14 @@ BOOL RenderDirect3D()
 	for (int i = 0; i < 9; i++) {
 		if (D3DXVec3Length(&(hand.Pos - Ball[i].Pos)) <= (0.02855 * 2)) {
 			CalcParticleColliAfterPos(&hand.Pos, &hand.Speed, &Ball[i].Pos, &Ball[i].Speed, hand.Ball_Weight, Ball[i].Ball_Weight, hand.Coefficient_Restitution, Ball[i].Coefficient_Restitution, 0.001f, &hand.Pos, &hand.Speed, &Ball[i].Pos, &Ball[i].Speed);
+			Ball[i].SetRotate();
 		}
 	}
 	for (int i = 0; i < 9; i++) {
 		for (int j = i+1; j < 9; j++) {
 			if (D3DXVec3Length(&(Ball[i].Pos - Ball[j].Pos)) <= (0.02855 * 2)) {
 				CalcParticleColliAfterPos(&Ball[i].Pos, &Ball[i].Speed, &Ball[j].Pos, &Ball[j].Speed, Ball[i].Ball_Weight, Ball[j].Ball_Weight, Ball[i].Coefficient_Restitution, Ball[j].Coefficient_Restitution, 0.001f, &Ball[i].Pos, &Ball[i].Speed, &Ball[j].Pos, &Ball[j].Speed);
+				Ball[j].SetRotate();
 			}
 		}
 	}
