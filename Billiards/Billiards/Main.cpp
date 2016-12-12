@@ -1,71 +1,5 @@
-#define _USE_MATH_DEFINES
-#define IKD_EPSIRON 0.00001f	// 誤差
-
-#include <stdio.h>
-#include <windows.h>
-#include <d3d9.h>
-#include <d3dx9.h>
-#include <math.h>
-#include <iostream>
-
-#pragma once
-#pragma comment(lib,"winmm.lib")
-
-const double Gravity = 9.8;
-const int SCREEN_WIDTH = 1680;	// ウィンドウの幅
-const int SCREEN_HEIGHT = 768;	// ウィンドウの高さ
-
-
-///////////////////////////////////////////////////
-// パーティクル衝突後速度位置算出関数
-//   pColliPos_A : 衝突中のパーティクルAの中心位置
-//   pVelo_A     : 衝突の瞬間のパーティクルAの速度
-//   pColliPos_B : 衝突中のパーティクルBの中心位置
-//   pVelo_B     : 衝突の瞬間のパーティクルBの速度
-//   weight_A    : パーティクルAの質量
-//   weight_B    : パーティクルBの質量
-//   res_A       : パーティクルAの反発率
-//   res_B       : パーティクルBの反発率
-//   time        : 反射後の移動時間
-//   pOut_pos_A  : パーティクルAの反射後位置
-//   pOut_velo_A : パーティクルAの反射後速度ベクトル
-//   pOut_pos_B  : パーティクルBの反射後位置
-//   pOut_velo_B : パーティクルBの反射後速度ベクトル
-
-bool CalcParticleColliAfterPos(
-	D3DXVECTOR3 *pColliPos_A, D3DXVECTOR3 *pVelo_A,
-	D3DXVECTOR3 *pColliPos_B, D3DXVECTOR3 *pVelo_B,
-	FLOAT weight_A, FLOAT weight_B,
-	FLOAT res_A, FLOAT res_B,
-	FLOAT time,
-	D3DXVECTOR3 *pOut_pos_A, D3DXVECTOR3 *pOut_velo_A,
-	D3DXVECTOR3 *pOut_pos_B, D3DXVECTOR3 *pOut_velo_B
-	)
-{
-	FLOAT TotalWeight = weight_A + weight_B; // 質量の合計
-	FLOAT RefRate = (1 + res_A*res_B); // 反発率
-	D3DXVECTOR3 C = *pColliPos_B - *pColliPos_A; // 衝突軸ベクトル
-	D3DXVec3Normalize(&C, &C);
-	FLOAT Dot = D3DXVec3Dot(&(*pVelo_A - *pVelo_B), &C); // 内積算出
-	D3DXVECTOR3 ConstVec = RefRate*Dot / TotalWeight * C; // 定数ベクトル
-
-	// 衝突後速度ベクトルの算出
-	*pOut_velo_A = -weight_B * ConstVec + *pVelo_A;
-	*pOut_velo_B = weight_A * ConstVec + *pVelo_B;
-
-	// 衝突後位置の算出
-	*pOut_pos_A = *pColliPos_A + time * (*pOut_velo_A);
-	*pOut_pos_B = *pColliPos_B + time * (*pOut_velo_B);
-
-	if (D3DXVec3Length(&(*pOut_pos_A - *pOut_pos_B)) < (0.02855 * 2 - IKD_EPSIRON)) {
-		D3DXVECTOR3 A = *pOut_velo_A;		D3DXVec3Normalize(&A, &A); //　単位速度ベクトル
-		D3DXVECTOR3 B = *pOut_velo_B;		D3DXVec3Normalize(&B, &B); //　単位速度ベクトル
-		*pOut_pos_A = *pColliPos_A + 0.02855 * A;
-		*pOut_pos_B = *pColliPos_B + 0.02855 * B;
-	}
-
-	return true;
-}
+#include "Header.h"
+#include "CalcParticleColliAfterPos.h"
 
 //-----------------------------------------------------------------
 //    Grobal Variables.
@@ -73,11 +7,34 @@ bool CalcParticleColliAfterPos(
 LPDIRECT3D9             g_pD3D = NULL;
 LPDIRECT3DDEVICE9       g_pd3dDevice = NULL;
 
+const double Gravity = 9.8;
+const int SCREEN_WIDTH = 1680;	// ウィンドウの幅
+const int SCREEN_HEIGHT = 768;	// ウィンドウの高さ
+
+LPD3DXMESH              pMesh;
+LPD3DXBUFFER			pMaterial;
+DWORD					dwNumMaterials;
+D3DMATERIAL9*			pMeshMaterials;
+LPDIRECT3DTEXTURE9*		pMeshTextures;
+D3DXMATERIAL*			d3dxMaterials;
 
 //-----------------------------------------------------------------
-//    Struct
+//    Struct.
 //-----------------------------------------------------------------
-struct MeshData {
+struct MSTATE {
+    RECT    moveRect;     // 画面上で動ける範囲
+    int     x;            // X座標
+    int     y;            // Y座標
+    bool    lButton;      // 左ボタン
+    bool    rButton;      // 右ボタン
+    bool    cButton;      // 真ん中ボタン
+    int     moveAdd;      // 移動量
+    RECT    imgRect;      // マウス用画像矩形
+    int     imgWidth;     // マウス画像幅
+    int     imgHeight;    // マウス画像高さ
+}MState;
+
+struct MeshData{
 	LPD3DXMESH              pMesh;
 	LPD3DXBUFFER			pMaterial;
 	DWORD					dwNumMaterials;
@@ -142,7 +99,7 @@ public:
 
 }Table, Shop;
 
-struct BallData {
+struct BallData{
 	MeshData		Ball;						// ボール構造体
 	D3DXVECTOR3		Pos;						// ボール座標
 	D3DXVECTOR3		Rot;						// ボール回転方向
@@ -151,7 +108,6 @@ struct BallData {
 	D3DXVECTOR3		Speed;						// ボール速度
 	double			Coefficient_Restitution;	// 反発係数
 	double			Attenuation_Coefficient;	// 減衰係数
-	
 
 public:
 	BallData() {			/* constructor	*/
@@ -160,8 +116,8 @@ public:
 		Ball_Radius = 0.02855;	// 直径57.1mm
 		Rot.x = 0; Rot.y = 0; Rot.z = 0;
 		Speed.x = 0; Speed.y = 0; Speed.z = 0;
-		Coefficient_Restitution = 0.99;
-		Attenuation_Coefficient = 0.99;
+		Coefficient_Restitution = 0.985;
+		Attenuation_Coefficient = 0.985;
 	}
 	BOOL LoadData(char* file, D3DXVECTOR3 _Pos) {
 		Ball.LoadMeshData(file);
@@ -184,7 +140,7 @@ public:
 		D3DXVECTOR3		Rot_t;
 		D3DXVec3Normalize(&Rot_t, &Rot);
 		D3DXMatrixRotationAxis(&matRotation, &Rot_t, Ball_Radius * theta);
-		D3DXMatrixMultiply(&matWorld, &matWorld, &matRotation);		
+		D3DXMatrixMultiply(&matWorld, &matWorld, &matRotation);
 
 		// モデルの移動
 		D3DXMatrixTranslation(&matPosition, Pos.x, Pos.y, Pos.z);
@@ -197,10 +153,10 @@ public:
 	}
 	VOID UpdateBallPos() {
 		//if (!(Speed.x == 0 && Speed.y == 0 && Speed.z == 0)) {
-			Pos += Speed + Rot/10.0f;
-			Speed = Speed * Attenuation_Coefficient;
-			Rot = Rot * Attenuation_Coefficient;
-			//SetRotate();
+		Pos += Speed + Rot / 10.0f;
+		Speed = Speed * Attenuation_Coefficient;
+		Rot = Rot * Attenuation_Coefficient;
+		//SetRotate();
 		//}
 	}
 	VOID ReflectBallPosX() {
@@ -234,22 +190,7 @@ public:
 		Rot.y = Speed.y;
 		Rot.z = Speed.x;
 	}
-
-}Ball[9],hand;
-
-
-
-
-//-----------------------------------------------------------------
-//    Prototypes.
-//-----------------------------------------------------------------
-HWND    InitApp(HINSTANCE, int);
-BOOL    InitDirect3D(HWND);
-BOOL    CleanupDirect3D();
-BOOL    SetupMatrices();
-BOOL    RenderDirect3D();
-LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
-
+}Ball[9], hand;
 
 
 //-----------------------------------------------------------------
@@ -257,8 +198,6 @@ LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 //-----------------------------------------------------------------
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevinst, LPSTR nCmdLine, int nCmdShow)
 {
-	MSG msg;
-	HWND hWnd;
 
 	ZeroMemory(&msg, sizeof(msg));  //msg初期化
 
@@ -290,6 +229,7 @@ HWND InitApp(HINSTANCE hInst, int nCmdShow)
 {
 	WNDCLASS wc;
 	HWND hWnd;
+
 	char szClassName[] = "Direct3D Test";
 
 	wc.style = CS_HREDRAW | CS_VREDRAW;
@@ -305,12 +245,33 @@ HWND InitApp(HINSTANCE hInst, int nCmdShow)
 	if (!RegisterClass(&wc)) return FALSE;
 
 	hWnd = CreateWindow(szClassName, "Billiards", WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT, CW_USEDEFAULT, SCREEN_WIDTH, SCREEN_HEIGHT,
+		0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
 		NULL, NULL, hInst, NULL);
 	if (!hWnd) return FALSE;
 
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
+
+	// DirectInputオブジェクトの初期化
+	if (FAILED(InitDInput(hInst))) return (FALSE);
+
+	// Keyboard Object の初期化
+	if (FAILED(InitKeyboard())) return (FALSE);
+
+	// Mouse Object の初期化
+	if (FAILED(InitMouse())) return (FALSE);
+
+	//------------------------------------------------------- マウスポインタ情報の初期化
+	SetRect(&MState.moveRect, 10, 10, 630, 470);	// マウスカーソルの動く範囲
+	MState.x = MState.moveRect.left;	// マウスカーソルのＸ座標を初期化
+	MState.y = MState.moveRect.top;	// マウスカーソルのＹ座標を初期化
+	MState.lButton = false;	// 左ボタンの情報を初期化
+	MState.rButton = false;	// 右ボタンの情報を初期化
+	MState.cButton = false;	// 中央ボタンの情報を初期化
+	MState.moveAdd = 2;	// マウスカーソルの移動量を設定
+	SetRect(&MState.imgRect, 400, 0, 420, 20);	// マウスカーソル画像の矩形を設定
+	MState.imgWidth = MState.imgRect.right - MState.imgRect.left;	// 画像の幅を計算
+	MState.imgHeight = MState.imgRect.bottom - MState.imgRect.top;	// 画像の高さを計算
 
 	return hWnd;
 }
@@ -362,7 +323,10 @@ BOOL InitDirect3D(HWND hWnd)
 	Ball[7].LoadData(".\\8.x", D3DXVECTOR3( 0.99f, 0.976f,  0.036f));
 	Ball[8].LoadData(".\\9.x", D3DXVECTOR3(0.925f, 0.976f,    0.0f));
 	hand.LoadData(".\\hand.x", D3DXVECTOR3( -1.0f, 0.976f,    0.0f));
-	hand.Speed.x += 0.1f; hand.Rot.x += 0.02f; hand.Rot.z += 0.03f;
+	//hand.Speed.x += 0.1f; hand.Rot.x += 0.02f; hand.Rot.z += 0.03f;
+
+	theta = M_PI;
+	lookheight = 0.0f;
 
 	return TRUE;
 }
@@ -388,9 +352,11 @@ BOOL CleanupDirect3D()
 	if (g_pD3D != NULL)
 		g_pD3D->Release();
 
+	// DirectInputオブジェクトの開放
+	ReleaseDInput();
+
 	return TRUE;
 }
-
 
 
 //-----------------------------------------------------------------
@@ -411,7 +377,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 }
 
 
-
 //-----------------------------------------------------------------
 //    Setup Matrices.
 //-----------------------------------------------------------------
@@ -421,24 +386,24 @@ BOOL SetupMatrices()
 	D3DXVECTOR3 vEyePt, vLookatPt, vUpVec;
 
 	// World Matrix.
-	//D3DXMatrixRotationY(&matWorld, timeGetTime() / 1000.0f);
-	//D3DXMatrixRotationY(&matWorld, (float)(270*M_PI/180));
-	//g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
+	D3DXMatrixRotationY(&matWorld, timeGetTime() / 1000.0f);
+	D3DXMatrixRotationY(&matWorld, (float)(270*M_PI/180));
+	g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
 
 	// Camera.
 	//vEyePt.x = 0.0f - 1.9f;
 	//vEyePt.y = 1.2f;
 	//vEyePt.z = 0.0f;
 
+	/*
 	float theta = fmod((timeGetTime())/30.0f, 360.0f) * M_PI / 180.0f;
+	*/
+	vEyePt.x = 1.2f*cos(theta) + hand.Pos.x;
+	vEyePt.y = 1.4f + lookheight;
+	vEyePt.z = 1.2f*sin(theta) + hand.Pos.z;
+	
 
-	vEyePt.x = 1.9f*cos(theta);
-	vEyePt.y = 1.4f;
-	vEyePt.z = 1.9f*sin(theta);
-
-	vLookatPt.x = 0.0f;
-	vLookatPt.y = 0.976f;
-	vLookatPt.z = 0.0f;
+	vLookatPt = hand.Pos;
 	vUpVec.x = 0.0f;
 	vUpVec.y = 1.5f;
 	vUpVec.z = 0.0f;
@@ -460,8 +425,8 @@ BOOL SetupMatrices()
 //-----------------------------------------------------------------
 BOOL RenderDirect3D()
 {
-	RECT rc;
 	D3DXVECTOR3 center, position;
+	POINT MousePoint;
 	
 
 	g_pd3dDevice->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
@@ -470,6 +435,45 @@ BOOL RenderDirect3D()
 	g_pd3dDevice->BeginScene();
 
 	SetupMatrices();
+
+	// マウスの状態を取得
+	GetMouseState();
+	GetCursorPos(&MousePoint);
+
+
+	// 取得した情報を元にマウスの情報を更新
+	MState.x = MousePoint.x;
+	MState.y = MousePoint.y;
+	(g_diMouseState.rgbButtons[0] & 0x80) ? MState.lButton = true : MState.lButton = false;
+	(g_diMouseState.rgbButtons[1] & 0x80) ? MState.rButton = true : MState.rButton = false;
+	(g_diMouseState.rgbButtons[2] & 0x80) ? MState.cButton = true : MState.cButton = false;
+
+	if (MState.lButton) {
+		//if (MState.x >= 812 && MState.x <= 869) {
+		//	if (MState.y >= 450 && MState.y <= 500) {
+				hand.Speed.x += cos(theta - M_PI) / 40.0f; hand.Speed.z += sin(theta - M_PI) / 40.0f;
+				//hand.Rot.x += cos(theta - M_PI); hand.Rot.z += sin(theta - M_PI);
+		//	}
+		//}
+	}
+
+	// マウスの位置によって視点移動
+	if (MState.x <= 635) {
+		theta += 0.2 * M_PI / 180.0f;
+	}
+	else if (MState.x >= 1035) {
+		theta -= 0.2 * M_PI / 180.0f;
+	}
+	/*
+	if (MState.y <= 375) {
+		lookheight -= 0.01f;
+	}
+	else if (MState.y >= 575) {
+		lookheight += 0.01f;
+	}
+	*/
+
+	
 
 	// モデルの配置
 	D3DXMATRIXA16 matWorld, matPosition;
@@ -503,7 +507,6 @@ BOOL RenderDirect3D()
 		}
 	}
 	
-	
 
 	g_pd3dDevice->EndScene();
 
@@ -511,3 +514,153 @@ BOOL RenderDirect3D()
 
 	return TRUE;
 }
+
+
+//-----------------------------------------------------------------------------
+// Direct Input 初期化
+//-----------------------------------------------------------------------------
+bool InitDInput(HINSTANCE hInstApp)
+{
+	HRESULT		hr;
+
+	hr = DirectInput8Create(hInstApp, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&g_lpDInput, NULL);
+	if (FAILED(hr))
+		return false;	// DirectInput8の作成に失敗
+
+	return true;
+
+}
+
+//-----------------------------------------------------------------------------
+// Direct Input 開放処理
+//-----------------------------------------------------------------------------
+void ReleaseDInput(void)
+{
+	// DirectInputのデバイスを開放
+	if (g_lpDIKeyboard) g_lpDIKeyboard->Unacquire();
+	RELEASE(g_lpDIKeyboard);
+	if (g_lpDIMouse) g_lpDIMouse->Unacquire();
+	RELEASE(g_lpDIMouse);
+	RELEASE(g_lpDInput);
+
+}
+
+//-----------------------------------------------------------------------------
+// キーボード用オブジェクト作成
+//-----------------------------------------------------------------------------
+bool InitKeyboard(void)
+{
+	HRESULT		hr;
+
+	//キーボード用にデバイスオブジェクトを作成
+	hr = g_lpDInput->CreateDevice(GUID_SysKeyboard, &g_lpDIKeyboard, NULL);
+	if (FAILED(hr))
+		return false;  // デバイスの作成に失敗
+
+					   //キーボード用のデータ・フォーマットを設定
+	hr = g_lpDIKeyboard->SetDataFormat(&c_dfDIKeyboard);
+	if (FAILED(hr))
+		return false; // デバイスの作成に失敗
+
+					  //モードを設定（フォアグラウンド＆非排他モード）
+	hr = g_lpDIKeyboard->SetCooperativeLevel(hWnd, DISCL_NONEXCLUSIVE | DISCL_FOREGROUND);
+	if (FAILED(hr))
+		return false; // モードの設定に失敗
+
+					  //キーボード入力制御開始
+	g_lpDIKeyboard->Acquire();
+
+	return true;
+
+}
+
+//-----------------------------------------------------------------------------
+// 関数名　：　GetKeyboardState()
+// 機能概要：　キーボードの状態を取得
+//-----------------------------------------------------------------------------
+void GetKeyboardState(void)
+{
+	HRESULT			hr;
+
+	if (g_lpDIKeyboard == NULL) return;
+
+	hr = g_lpDIKeyboard->GetDeviceState(256, g_diKeyState);
+	if (hr == DIERR_INPUTLOST || hr == DIERR_NOTACQUIRED) {
+		hr = g_lpDIKeyboard->Acquire();
+		while (hr == DIERR_INPUTLOST)
+			hr = g_lpDIKeyboard->Acquire();
+	}
+
+}
+
+//-----------------------------------------------------------------------------
+// マウス用オブジェクト作成
+//-----------------------------------------------------------------------------
+bool InitMouse(void)
+{
+	HRESULT		hr;
+
+	// マウス用にデバイスオブジェクトを作成
+	hr = g_lpDInput->CreateDevice(GUID_SysMouse, &g_lpDIMouse, NULL);
+	if (FAILED(hr))
+		return false;	// デバイスの作成に失敗
+
+						// データフォーマットを設定
+	hr = g_lpDIMouse->SetDataFormat(&c_dfDIMouse);	// マウス用のデータ・フォーマットを設定
+	if (FAILED(hr))
+		return false;	// データフォーマットに失敗
+
+						// モードを設定（フォアグラウンド＆非排他モード）
+	hr = g_lpDIMouse->SetCooperativeLevel(hWnd, DISCL_NONEXCLUSIVE | DISCL_FOREGROUND);
+	if (FAILED(hr))
+		return false;	// モードの設定に失敗
+
+						// デバイスの設定
+	DIPROPDWORD					diprop;
+	diprop.diph.dwSize = sizeof(diprop);
+	diprop.diph.dwHeaderSize = sizeof(diprop.diph);
+	diprop.diph.dwObj = 0;
+	diprop.diph.dwHow = DIPH_DEVICE;
+	diprop.dwData = DIPROPAXISMODE_REL;	// 相対値モードで設定（絶対値はDIPROPAXISMODE_ABS）
+	hr = g_lpDIMouse->SetProperty(DIPROP_AXISMODE, &diprop.diph);
+	if (FAILED(hr))
+		return false;	// デバイスの設定に失敗
+
+						// 入力制御開始
+	g_lpDIMouse->Acquire();
+
+	return true;
+
+}
+
+//-----------------------------------------------------------------------------
+// 関数名　：　GetMouseState()
+// 機能概要：　マウスの状態を取得
+//-----------------------------------------------------------------------------
+void GetMouseState(void)
+{
+	HRESULT			hr;
+
+	hr = g_lpDIMouse->GetDeviceState(sizeof(DIMOUSESTATE), &g_diMouseState);
+	if (hr == DIERR_INPUTLOST || hr == DIERR_NOTACQUIRED) {
+		hr = g_lpDIMouse->Acquire();
+		while (hr == DIERR_INPUTLOST)
+			hr = g_lpDIMouse->Acquire();
+	}
+	
+	/*
+	#if DEBUG
+		char buf[80];
+		wsprintf(buf, "(%d, %d, %d) %s %s %s",
+			g_diMouseState.lX,
+			g_diMouseState.lY,
+			g_diMouseState.lZ,
+			(g_diMouseState.rgbButtons[0] & 0x80) ? "Left" : "--",
+			(g_diMouseState.rgbButtons[1] & 0x80) ? "Right" : "--",
+			(g_diMouseState.rgbButtons[2] & 0x80) ? "Center" : "--");
+		std::cout << buf << std::endl;
+	#endif
+	*/
+
+}
+
