@@ -157,6 +157,9 @@
   <ItemGroup>
     <ClInclude Include="CalcParticleColliAfterPos.h" />
     <ClInclude Include="Header.h" />
+    <ClInclude Include="GetBillBoardRotation.h" />
+    <ClInclude Include="ScreenViewChange.h" />
+    <ClInclude Include="MyD3D.h" />
     <ClInclude Include="NKC_DInput.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

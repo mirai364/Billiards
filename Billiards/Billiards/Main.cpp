@@ -1,11 +1,12 @@
 #include "Header.h"
 #include "CalcParticleColliAfterPos.h"
+#include "GetBillBoardRotation.h"
+#include "MyD3D.h"
+#include "ScreenViewChange.h"
 
 //-----------------------------------------------------------------
 //    Grobal Variables.
 //-----------------------------------------------------------------
-LPDIRECT3D9             g_pD3D = NULL;
-LPDIRECT3DDEVICE9       g_pd3dDevice = NULL;
 
 const double Gravity = 9.8;
 const int SCREEN_WIDTH = 1680;	// ウィンドウの幅
@@ -17,6 +18,8 @@ DWORD					dwNumMaterials;
 D3DMATERIAL9*			pMeshMaterials;
 LPDIRECT3DTEXTURE9*		pMeshTextures;
 D3DXMATERIAL*			d3dxMaterials;
+MyD3D*                  myd3d = NULL;
+BOOL					isFALL[9];
 
 //-----------------------------------------------------------------
 //    Struct.
@@ -29,9 +32,6 @@ struct MSTATE {
     bool    rButton;      // 右ボタン
     bool    cButton;      // 真ん中ボタン
     int     moveAdd;      // 移動量
-    RECT    imgRect;      // マウス用画像矩形
-    int     imgWidth;     // マウス画像幅
-    int     imgHeight;    // マウス画像高さ
 }MState;
 
 struct MeshData{
@@ -98,6 +98,66 @@ public:
 	}
 
 }Table, Shop;
+
+struct GoalCylinder {
+	LPD3DXMESH              pMesh;
+	D3DXVECTOR3				Pos;						// 円柱座標
+	D3DMATERIAL9			d3dxMaterials;
+public:
+	GoalCylinder() {			/* constructor	*/
+		pMesh = NULL;
+	}
+	BOOL LoadData(D3DXVECTOR3 _Pos, D3DXVECTOR3 _Color) {
+		D3DXCreateCylinder(g_pd3dDevice, 0.07f, 0.07f, 0.2f, 30, 30, &pMesh, NULL);
+		Pos = _Pos;
+
+		pMeshMaterials = new D3DMATERIAL9[dwNumMaterials];
+
+		// マテリアルなし
+		d3dxMaterials.Diffuse.r = _Color.x;
+		d3dxMaterials.Diffuse.g = _Color.y;
+		d3dxMaterials.Diffuse.b = _Color.z;
+		d3dxMaterials.Diffuse.a = 0.0f;
+		d3dxMaterials.Ambient = d3dxMaterials.Diffuse;
+
+		return TRUE;
+	}
+	BOOL CleanupMesh() {
+		if (pMesh != NULL)
+			pMesh->Release();
+
+		return TRUE;
+	}
+	BOOL RenderCylinder() {
+		D3DXMATRIXA16 matWorld, matPosition, matRotation;
+		D3DXMatrixIdentity(&matWorld);
+
+		// モデルの回転
+		D3DXVECTOR3		Rot = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
+		D3DXMatrixRotationAxis(&matRotation, &Rot,90.0f / 180.0f * M_PI);
+		D3DXMatrixMultiply(&matWorld, &matWorld, &matRotation);
+
+		// モデルの移動
+		D3DXMatrixTranslation(&matPosition, Pos.x, Pos.y, Pos.z);
+		D3DXMatrixMultiply(&matWorld, &matWorld, &matPosition);
+
+		g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
+		//myd3d->SetMaterial(Color.x, Color.y, Color.z);
+
+		// テクスチャのブレンディング方法を定義する
+		g_pd3dDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);// 引数の成分を乗算する
+		g_pd3dDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+		g_pd3dDevice->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+
+		g_pd3dDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+		g_pd3dDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+		g_pd3dDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		g_pd3dDevice->SetMaterial(&d3dxMaterials);
+		pMesh->DrawSubset(0);
+		return TRUE;
+	}
+
+}Goal[6];
 
 struct BallData{
 	MeshData		Ball;						// ボール構造体
@@ -190,7 +250,34 @@ public:
 		Rot.y = Speed.y;
 		Rot.z = Speed.x;
 	}
+	VOID Goal(float x,float y) {
+		D3DXMATRIX TEMP;            // 板の回転行列
+
+		D3DXVECTOR3 pout;
+		//ZeroMemory(&pout, sizeof(pout));  //pout初期化
+		ScreenViewChanger(x,y,&pout);
+		Pos = pout;
+		GetBillBoardRotation(&Pos, &hand.Pos, &TEMP);   // ターゲットの方を向く回転行列を決定します。
+
+		// モデルの配置
+		D3DXMATRIXA16 matWorld, matPosition;
+		D3DXMatrixIdentity(&matWorld);
+
+		// モデルの回転
+		D3DXMatrixMultiply(&matWorld, &matWorld, &TEMP);
+
+		// モデルの移動
+		D3DXMatrixTranslation(&matPosition, Pos.x, Pos.y, Pos.z);
+		D3DXMatrixMultiply(&matWorld, &matWorld, &matPosition);
+
+		// ワールドマトリックスをDirectXに設定
+		g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
+		Ball.RenderMesh();
+
+		Speed.x = 0; Speed.y = 0; Speed.z = 0;
+	}
 }Ball[9], hand;
+
 
 
 //-----------------------------------------------------------------
@@ -269,9 +356,6 @@ HWND InitApp(HINSTANCE hInst, int nCmdShow)
 	MState.rButton = false;	// 右ボタンの情報を初期化
 	MState.cButton = false;	// 中央ボタンの情報を初期化
 	MState.moveAdd = 2;	// マウスカーソルの移動量を設定
-	SetRect(&MState.imgRect, 400, 0, 420, 20);	// マウスカーソル画像の矩形を設定
-	MState.imgWidth = MState.imgRect.right - MState.imgRect.left;	// 画像の幅を計算
-	MState.imgHeight = MState.imgRect.bottom - MState.imgRect.top;	// 画像の高さを計算
 
 	return hWnd;
 }
@@ -323,7 +407,12 @@ BOOL InitDirect3D(HWND hWnd)
 	Ball[7].LoadData(".\\8.x", D3DXVECTOR3( 0.99f, 0.976f,  0.036f));
 	Ball[8].LoadData(".\\9.x", D3DXVECTOR3(0.925f, 0.976f,    0.0f));
 	hand.LoadData(".\\hand.x", D3DXVECTOR3( -1.0f, 0.976f,    0.0f));
-	//hand.Speed.x += 0.1f; hand.Rot.x += 0.02f; hand.Rot.z += 0.03f;
+	Goal[0].LoadData(D3DXVECTOR3(-1.65f, 0.9f, 0.85f), D3DXVECTOR3(0.5f, 0.5f, 0.5f));
+	Goal[1].LoadData(D3DXVECTOR3( 1.65f, 0.9f, 0.85f), D3DXVECTOR3(0.5f, 0.5f, 0.5f));
+	Goal[2].LoadData(D3DXVECTOR3(-1.65f, 0.9f,-0.85f), D3DXVECTOR3(0.5f, 0.5f, 0.5f));
+	Goal[3].LoadData(D3DXVECTOR3( 1.65f, 0.9f,-0.85f), D3DXVECTOR3(0.5f, 0.5f, 0.5f));
+	Goal[4].LoadData(D3DXVECTOR3( 0.0f, 0.9f,-0.9f), D3DXVECTOR3(0.5f, 0.5f, 0.5f));
+	Goal[5].LoadData(D3DXVECTOR3( 0.0f, 0.9f, 0.9f), D3DXVECTOR3(0.5f, 0.5f, 0.5f));
 
 	theta = M_PI;
 	lookheight = 0.0f;
@@ -401,8 +490,6 @@ BOOL SetupMatrices()
 	vEyePt.x = 1.2f*cos(theta) + hand.Pos.x;
 	vEyePt.y = 1.4f + lookheight;
 	vEyePt.z = 1.2f*sin(theta) + hand.Pos.z;
-	
-
 	vLookatPt = hand.Pos;
 	vUpVec.x = 0.0f;
 	vUpVec.y = 1.5f;
@@ -413,6 +500,7 @@ BOOL SetupMatrices()
 	// Projection Matrix.
 	D3DXMatrixPerspectiveFovLH(&matProj, (float)(60 * M_PI / 180), SCREEN_WIDTH/ SCREEN_HEIGHT, 0.5f, 100.0f);
 	g_pd3dDevice->SetTransform(D3DTS_PROJECTION, &matProj);
+
 
 	return TRUE;
 }
@@ -440,6 +528,9 @@ BOOL RenderDirect3D()
 	GetMouseState();
 	GetCursorPos(&MousePoint);
 
+	/* キーボードの状態を取得 */
+	GetKeyboardState();
+
 
 	// 取得した情報を元にマウスの情報を更新
 	MState.x = MousePoint.x;
@@ -457,23 +548,37 @@ BOOL RenderDirect3D()
 		//}
 	}
 
-	// マウスの位置によって視点移動
-	if (MState.x <= 635) {
-		theta += 0.2 * M_PI / 180.0f;
+	// 方向キーによって視点移動
+	if (g_diKeyState[DIK_LSHIFT] & 0x80) {
+		// シフトキーを押しつつ方向キーによって倍視点移動
+		if (g_diKeyState[DIK_LEFT] & 0x80) {
+			theta += 0.8 * M_PI / 180.0f;
+		}
+		else if (g_diKeyState[DIK_RIGHT] & 0x80) {
+			theta -= 0.8 * M_PI / 180.0f;
+		}
+		else if (g_diKeyState[DIK_UP] & 0x80) {
+			lookheight -= 0.04f;
+		}
+		else if (g_diKeyState[DIK_DOWN] & 0x80) {
+			lookheight += 0.04f;
+		}
 	}
-	else if (MState.x >= 1035) {
-		theta -= 0.2 * M_PI / 180.0f;
-	}
-	/*
-	if (MState.y <= 375) {
-		lookheight -= 0.01f;
-	}
-	else if (MState.y >= 575) {
-		lookheight += 0.01f;
-	}
-	*/
-
-	
+	else {
+		// 方向キーによって視点移動
+		if (g_diKeyState[DIK_LEFT] & 0x80) {
+			theta += 0.2 * M_PI / 180.0f;
+		}
+		else if (g_diKeyState[DIK_RIGHT] & 0x80) {
+			theta -= 0.2 * M_PI / 180.0f;
+		}
+		else if (g_diKeyState[DIK_UP] & 0x80) {
+			lookheight -= 0.01f;
+		}
+		else if (g_diKeyState[DIK_DOWN] & 0x80) {
+			lookheight += 0.01f;
+		}
+	}	
 
 	// モデルの配置
 	D3DXMATRIXA16 matWorld, matPosition;
@@ -487,26 +592,42 @@ BOOL RenderDirect3D()
 	Table.RenderMesh();
 
 
+
+	// GoalとBall同士のあたり判定
 	for (int i = 0; i < 9; i++) {
-		Ball[i].DrawingData();
+		for (int j = 0; j < 6; j++) {
+			if (D3DXVec3Length(&(Goal[j].Pos - Ball[i].Pos)) <= (0.02855f + 0.07f)) {
+				isFALL[i] = TRUE;
+			}
+		}
 	}
-	hand.DrawingData();
-	
+	// Goal済みボールの再配置
 	for (int i = 0; i < 9; i++) {
-		if (D3DXVec3Length(&(hand.Pos - Ball[i].Pos)) <= (0.02855 * 2)) {
+		if (isFALL[i]) {
+			Ball[i].Goal(60.0f * (i + 1), 50.0f);
+		}
+		else {
+			Ball[i].DrawingData();
+		}
+	}
+
+	hand.DrawingData();
+	// handとBall同士のあたり判定
+	for (int i = 0; i < 9; i++) {
+		if (D3DXVec3Length(&(hand.Pos - Ball[i].Pos)) <= (0.02855 * 2) && !isFALL[i]) {
 			CalcParticleColliAfterPos(&hand.Pos, &hand.Speed, &Ball[i].Pos, &Ball[i].Speed, hand.Ball_Weight, Ball[i].Ball_Weight, hand.Coefficient_Restitution, Ball[i].Coefficient_Restitution, 0.001f, &hand.Pos, &hand.Speed, &Ball[i].Pos, &Ball[i].Speed);
 			Ball[i].SetRotate();
 		}
 	}
+	// BallとBall同士のあたり判定
 	for (int i = 0; i < 9; i++) {
 		for (int j = i+1; j < 9; j++) {
-			if (D3DXVec3Length(&(Ball[i].Pos - Ball[j].Pos)) <= (0.02855 * 2)) {
+			if (D3DXVec3Length(&(Ball[i].Pos - Ball[j].Pos)) <= (0.02855 * 2) && !isFALL[i] && !isFALL[j]) {
 				CalcParticleColliAfterPos(&Ball[i].Pos, &Ball[i].Speed, &Ball[j].Pos, &Ball[j].Speed, Ball[i].Ball_Weight, Ball[j].Ball_Weight, Ball[i].Coefficient_Restitution, Ball[j].Coefficient_Restitution, 0.001f, &Ball[i].Pos, &Ball[i].Speed, &Ball[j].Pos, &Ball[j].Speed);
 				Ball[j].SetRotate();
 			}
 		}
 	}
-	
 
 	g_pd3dDevice->EndScene();
 
@@ -664,3 +785,30 @@ void GetMouseState(void)
 
 }
 
+D3DXVECTOR3* ScreenViewChanger(float x, float y, D3DXVECTOR3* pout) {
+	D3DXMATRIXA16 matView, matProj;
+	D3DXVECTOR3 vEyePt, vLookatPt, vUpVec;
+	D3DVIEWPORT9 viewData;
+
+	// ビュー行列
+	vEyePt.x = 1.2f*cos(theta) + hand.Pos.x;
+	vEyePt.y = 1.4f + lookheight;
+	vEyePt.z = 1.2f*sin(theta) + hand.Pos.z;
+	vLookatPt = hand.Pos;
+	vUpVec.x = 0.0f;
+	vUpVec.y = 1.5f;
+	vUpVec.z = 0.0f;
+	D3DXMatrixLookAtLH(&matView, &vEyePt, &vLookatPt, &vUpVec);
+	//g_pd3dDevice->SetTransform(D3DTS_VIEW, &matView);
+
+	// 射影行列
+	D3DXMatrixPerspectiveFovLH(&matProj, (float)(60 * M_PI / 180), SCREEN_WIDTH / SCREEN_HEIGHT, 0.5f, 100.0f);
+	//g_pd3dDevice->SetTransform(D3DTS_PROJECTION, &matProj);
+
+	// ビューポート
+	g_pd3dDevice->GetViewport(&viewData);
+
+	CalcScreenToWorld(pout, x, y, 0.4f, viewData.Width, viewData.Height, &matView, &matProj);
+
+	return pout;
+}

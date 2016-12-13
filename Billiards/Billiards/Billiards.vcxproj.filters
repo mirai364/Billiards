@@ -29,5 +29,14 @@
     <ClInclude Include="NKC_DInput.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="MyD3D.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GetBillBoardRotation.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ScreenViewChange.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
