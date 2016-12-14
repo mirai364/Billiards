@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Header.h"
 
 // ビルボード回転行列取得関数

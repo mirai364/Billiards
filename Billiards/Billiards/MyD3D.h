@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Header.h"
 /****************************************************************/
 /*š MyD3D Object Class Header   2007/10/15  Ver 1.3  ‘O“c –« š*/

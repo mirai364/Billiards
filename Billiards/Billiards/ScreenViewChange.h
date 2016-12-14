@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Header.h"
 
 // スクリーン座標をワールド座標に変換
@@ -56,6 +58,26 @@ D3DXVECTOR3* CalcScreenToXZ(
 	else {
 		*pout = farpos;
 	}
+
+	return pout;
+}
+
+D3DXVECTOR3* ScreenViewChanger(float x, float y, D3DXVECTOR3* pout) {
+	D3DXMATRIXA16 matView, matProj;
+	D3DVIEWPORT9 viewData;
+
+	// ビュー行列
+	D3DXMatrixLookAtLH(&matView, &vEyePt, &vLookatPt, &vUpVec);
+	//g_pd3dDevice->SetTransform(D3DTS_VIEW, &matView);
+
+	// 射影行列
+	D3DXMatrixPerspectiveFovLH(&matProj, (float)(60 * M_PI / 180), SCREEN_WIDTH / SCREEN_HEIGHT, 0.5f, 100.0f);
+	//g_pd3dDevice->SetTransform(D3DTS_PROJECTION, &matProj);
+
+	// ビューポート
+	g_pd3dDevice->GetViewport(&viewData);
+
+	CalcScreenToWorld(pout, x, y, 0.4f, viewData.Width, viewData.Height, &matView, &matProj);
 
 	return pout;
 }

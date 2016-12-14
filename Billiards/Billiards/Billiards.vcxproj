@@ -155,12 +155,22 @@
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BallData.h" />
     <ClInclude Include="CalcParticleColliAfterPos.h" />
+    <ClInclude Include="ExistsMoveBall.h" />
+    <ClInclude Include="GameScene.h" />
+    <ClInclude Include="GoalCylinder.h" />
     <ClInclude Include="Header.h" />
     <ClInclude Include="GetBillBoardRotation.h" />
+    <ClInclude Include="Input.h" />
+    <ClInclude Include="Level.h" />
+    <ClInclude Include="MeshData.h" />
+    <ClInclude Include="MSTATE.h" />
+    <ClInclude Include="ResultScene.h" />
     <ClInclude Include="ScreenViewChange.h" />
     <ClInclude Include="MyD3D.h" />
     <ClInclude Include="NKC_DInput.h" />
+    <ClInclude Include="TitleScene.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
