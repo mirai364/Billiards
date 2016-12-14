@@ -154,12 +154,14 @@ void InitParameter() {
 	Ball[7].LoadData(".\\8.x", D3DXVECTOR3(0.99f, 0.976f, 0.036f));
 	Ball[8].LoadData(".\\9.x", D3DXVECTOR3(0.925f, 0.976f, 0.0f));
 	hand.LoadData(".\\hand.x", D3DXVECTOR3(-1.0f, 0.976f, 0.0f));
-	Goal[0].LoadData(D3DXVECTOR3(-1.65f, 0.9f, 0.85f), D3DXVECTOR3(0.5f, 0.5f, 0.5f));
-	Goal[1].LoadData(D3DXVECTOR3(1.65f, 0.9f, 0.85f), D3DXVECTOR3(0.5f, 0.5f, 0.5f));
-	Goal[2].LoadData(D3DXVECTOR3(-1.65f, 0.9f, -0.85f), D3DXVECTOR3(0.5f, 0.5f, 0.5f));
-	Goal[3].LoadData(D3DXVECTOR3(1.65f, 0.9f, -0.85f), D3DXVECTOR3(0.5f, 0.5f, 0.5f));
-	Goal[4].LoadData(D3DXVECTOR3(0.0f, 0.9f, -0.9f), D3DXVECTOR3(0.5f, 0.5f, 0.5f));
-	Goal[5].LoadData(D3DXVECTOR3(0.0f, 0.9f, 0.9f), D3DXVECTOR3(0.5f, 0.5f, 0.5f));
+	Goal[0].LoadData(D3DXVECTOR3(-1.65f, 0.9f,  0.85f), D3DXVECTOR3(0.5f, 0.5f, 0.5f), 0.7f, 0.7f, 0.2f);
+	Goal[1].LoadData(D3DXVECTOR3( 1.65f, 0.9f,  0.85f), D3DXVECTOR3(0.5f, 0.5f, 0.5f), 0.7f, 0.7f, 0.2f);
+	Goal[2].LoadData(D3DXVECTOR3(-1.65f, 0.9f, -0.85f), D3DXVECTOR3(0.5f, 0.5f, 0.5f), 0.7f, 0.7f, 0.2f);
+	Goal[3].LoadData(D3DXVECTOR3( 1.65f, 0.9f, -0.85f), D3DXVECTOR3(0.5f, 0.5f, 0.5f), 0.7f, 0.7f, 0.2f);
+	Goal[4].LoadData(D3DXVECTOR3(  0.0f, 0.9f, -0.9f ), D3DXVECTOR3(0.5f, 0.5f, 0.5f), 0.7f, 0.7f, 0.2f);
+	Goal[5].LoadData(D3DXVECTOR3(  0.0f, 0.9f,  0.9f ), D3DXVECTOR3(0.5f, 0.5f, 0.5f), 0.7f, 0.7f, 0.2f);
+	Ray[0].LoadData(D3DXVECTOR3(0.0f, 0.0f, 0.0f), D3DXVECTOR3(0.5f, 0.5f, 0.5f), 0.1f, 0.1f, 1.0f);
+	Ray[1].LoadData(D3DXVECTOR3(0.0f, 0.0f, 0.0f), D3DXVECTOR3(0.5f, 0.5f, 0.5f), 0.1f, 0.1f, 1.0f);
 
 	theta = M_PI;
 	lookheight = 0.0f;

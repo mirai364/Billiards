@@ -10,8 +10,8 @@ public:
 	GoalCylinder() {			/* constructor	*/
 		pMesh = NULL;
 	}
-	BOOL LoadData(D3DXVECTOR3 _Pos, D3DXVECTOR3 _Color) {
-		D3DXCreateCylinder(g_pd3dDevice, 0.07f, 0.07f, 0.2f, 30, 30, &pMesh, NULL);
+	BOOL LoadData(D3DXVECTOR3 _Pos, D3DXVECTOR3 _Color, float x, float y, float h) {
+		D3DXCreateCylinder(g_pd3dDevice, x, y, h, 30, 30, &pMesh, NULL);
 		Pos = _Pos;
 
 		pMeshMaterials = new D3DMATERIAL9[dwNumMaterials];
@@ -20,7 +20,7 @@ public:
 		d3dxMaterials.Diffuse.r = _Color.x;
 		d3dxMaterials.Diffuse.g = _Color.y;
 		d3dxMaterials.Diffuse.b = _Color.z;
-		d3dxMaterials.Diffuse.a = 0.0f;
+		d3dxMaterials.Diffuse.a = 128.0f;
 		d3dxMaterials.Ambient = d3dxMaterials.Diffuse;
 
 		return TRUE;
@@ -31,13 +31,13 @@ public:
 
 		return TRUE;
 	}
-	BOOL RenderCylinder() {
+	BOOL RenderCylinder(float angle, D3DXVECTOR3 Rot) {
 		D3DXMATRIXA16 matWorld, matPosition, matRotation;
 		D3DXMatrixIdentity(&matWorld);
 
 		// ƒ‚ƒfƒ‹‚Ì‰ñ“]
-		D3DXVECTOR3		Rot = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
-		D3DXMatrixRotationAxis(&matRotation, &Rot, 90.0f / 180.0f * M_PI);
+		//D3DXVECTOR3		Rot = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
+		D3DXMatrixRotationAxis(&matRotation, &Rot, angle / 180.0f * M_PI);
 		D3DXMatrixMultiply(&matWorld, &matWorld, &matRotation);
 
 		// ƒ‚ƒfƒ‹‚ÌˆÚ“®
@@ -60,4 +60,4 @@ public:
 		return TRUE;
 	}
 
-}Goal[6];
+}Goal[6], Ray[2];

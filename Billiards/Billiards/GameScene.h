@@ -21,6 +21,31 @@ void GameScene() {
 		ClickLength = 0.0f;
 		isClickAfter = true;
 	}
+	if (!ExistsMoveBall()) {
+
+		// 白玉から壁までのレイの表示
+		BOOL pHit;
+		DWORD pFaceIndex, pCountOfHits;
+		float pU, pV, pDist, pDist2;
+		LPD3DXBUFFER ppALLHits;
+
+		D3DXVECTOR3 pRayDir = D3DXVECTOR3(1.0f*cos(theta - M_PI), 0.0f, 1.0f*sin(theta - M_PI));
+
+		D3DXIntersect(Table.pMesh, &hand.Pos, &pRayDir,&pHit,&pFaceIndex,&pU,&pV,&pDist,&ppALLHits,&pCountOfHits);
+		Ray[0].LoadData(hand.Pos + (pDist * pRayDir) / 2, D3DXVECTOR3(255, 255, 0), 0.005f, 0.005f, pDist);
+		Ray[0].RenderCylinder((theta * 180 / M_PI) - 90.0f, D3DXVECTOR3(0.0f, -1.0f, 0.0f));
+
+		/*
+		// 壁から壁までのレイの表示
+		D3DXVECTOR3 pRayDir2 = D3DXVECTOR3(1.0f*cos(theta / 2.0f), 0.0f, 1.0f*sin(theta/2.0f));
+
+		D3DXIntersect(Table.pMesh, &(hand.Pos + (pDist * pRayDir)), &pRayDir2, &pHit, &pFaceIndex, &pU, &pV, &pDist2, &ppALLHits, &pCountOfHits);
+
+		Ray[1].LoadData((hand.Pos + (pDist * pRayDir)) + (pDist2 * pRayDir2) / 2, D3DXVECTOR3(1.0f, 0.5f, 0.5f), 0.005f, 0.005f, pDist2);
+		Ray[1].RenderCylinder(((theta) / 2.0f * 180 / M_PI) - 90.0f, D3DXVECTOR3(0.0f, -1.0f, 0.0f));
+		*/
+		
+	}
 
 	// 方向キーによって視点移動
 	if (g_diKeyState[DIK_LSHIFT] & 0x80) {
