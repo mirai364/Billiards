@@ -14,6 +14,9 @@ void GameScene() {
 	}
 	if (isClick && !ExistsMoveBall()) {
 		ClickLength += 0.3f;
+		if (ClickLength >= 10.0f) {
+			ClickLength = 10.0f;
+		}
 	}
 	if (!MState.lButton && isClick && !ExistsMoveBall()) {
 		hand.Speed.x += cos(theta - M_PI) / 100.0f * (ClickLength); hand.Speed.z += sin(theta - M_PI) / 100.0f * (ClickLength);
@@ -21,7 +24,8 @@ void GameScene() {
 		ClickLength = 0.0f;
 		isClickAfter = true;
 	}
-	if (!ExistsMoveBall()) {
+	// R キーが押されていたら、レイの表示
+	if (!ExistsMoveBall() && g_diKeyState[DIK_R] & 0x80) {
 
 		// 白玉から壁までのレイの表示
 		BOOL pHit;
@@ -32,7 +36,7 @@ void GameScene() {
 		D3DXVECTOR3 pRayDir = D3DXVECTOR3(1.0f*cos(theta - M_PI), 0.0f, 1.0f*sin(theta - M_PI));
 
 		D3DXIntersect(Table.pMesh, &hand.Pos, &pRayDir,&pHit,&pFaceIndex,&pU,&pV,&pDist,&ppALLHits,&pCountOfHits);
-		Ray[0].LoadData(hand.Pos + (pDist * pRayDir) / 2, D3DXVECTOR3(255, 255, 0), 0.005f, 0.005f, pDist);
+		Ray[0].LoadData(hand.Pos + (pDist * pRayDir) / 2, D3DXVECTOR3(128, 255, 255), 0.002f, 0.002f, pDist * 0.85);
 		Ray[0].RenderCylinder((theta * 180 / M_PI) - 90.0f, D3DXVECTOR3(0.0f, -1.0f, 0.0f));
 
 		/*
@@ -45,6 +49,14 @@ void GameScene() {
 		Ray[1].RenderCylinder(((theta) / 2.0f * 180 / M_PI) - 90.0f, D3DXVECTOR3(0.0f, -1.0f, 0.0f));
 		*/
 		
+	}
+
+	// T キーを押している間だけ頭上表示
+	if (!ExistsMoveBall() && g_diKeyState[DIK_T] & 0x80) {
+		isViewEnable = true;
+	}
+	else {
+		isViewEnable = false;
 	}
 
 	// 方向キーによって視点移動

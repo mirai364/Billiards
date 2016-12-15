@@ -34,7 +34,12 @@ void TitleScene() {
 	}
 	hand.DrawingData();
 
+
+	// •¶Žšo—Í
+	SetRect(&rect, 0.0f, SCREEN_HEIGHT / 4.0f * 0.5f, SCREEN_WIDTH, SCREEN_HEIGHT / 4.0f);//•`‰æˆÊ’u
+	g_pFont->DrawText(NULL, "Billiards", -1, &rect, DT_CENTER | DT_NOCLIP, D3DCOLOR_ARGB(255, 0, 0, 0));
+
 	// •¶Žšo—Í
 	SetRect(&rect, 0.0f, SCREEN_HEIGHT / 4.0f * 3.0f, SCREEN_WIDTH, SCREEN_HEIGHT / 2.0f);//•`‰æˆÊ’u
-	g_pFont->DrawText(NULL, "Please click to start", -1, &rect, DT_CENTER | DT_NOCLIP, D3DCOLOR_ARGB(255, 128, 64, 64));
+	g_pFont->DrawText(NULL, "Please click to start", -1, &rect, DT_CENTER | DT_NOCLIP, D3DCOLOR_ARGB((timeGetTime() / 3) % 255, 0, 0, 0));
 }

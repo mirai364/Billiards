@@ -11,6 +11,7 @@
 #include "TitleScene.h"
 #include "GameScene.h"
 #include "ResultScene.h"
+#include "TutorialScene.h"
 
 //-----------------------------------------------------------------
 //    Main.
@@ -162,12 +163,16 @@ void InitParameter() {
 	Goal[5].LoadData(D3DXVECTOR3(  0.0f, 0.9f,  0.9f ), D3DXVECTOR3(0.5f, 0.5f, 0.5f), 0.7f, 0.7f, 0.2f);
 	Ray[0].LoadData(D3DXVECTOR3(0.0f, 0.0f, 0.0f), D3DXVECTOR3(0.5f, 0.5f, 0.5f), 0.1f, 0.1f, 1.0f);
 	Ray[1].LoadData(D3DXVECTOR3(0.0f, 0.0f, 0.0f), D3DXVECTOR3(0.5f, 0.5f, 0.5f), 0.1f, 0.1f, 1.0f);
+	D3DXCreateSprite(g_pd3dDevice, &g_pSprite);
+	D3DXCreateTextureFromFile(g_pd3dDevice, ".\\T1.jpg", &g_pTexture);
+	D3DXCreateTextureFromFile(g_pd3dDevice, ".\\T2.jpg", &g_pTexture2);
 
 	theta = M_PI;
 	lookheight = 0.0f;
 	NextBallNumber = 0;
 	isFirstConflict = false;
 	isClickAfter = false;
+	isViewEnable = false;
 
 	for (int i = 0; i < 9; i++) {
 		isFALL[i] = FALSE;
@@ -209,6 +214,15 @@ BOOL CleanupDirect3D()
 
 	if (g_pFont != NULL)
 		g_pFont->Release();
+
+	if (g_pTexture != NULL)
+		g_pTexture->Release();
+
+	if (g_pTexture2 != NULL)
+		g_pTexture2->Release();
+
+	if (g_pSprite != NULL)
+		g_pSprite->Release();
 
 	// DirectInputオブジェクトの開放
 	ReleaseDInput();
@@ -288,7 +302,7 @@ BOOL SetupMatrices()
 
 	}
 	// 動いているボールがあれば全体表示
-	else if(ExistsMoveBall() && isTitleClick) {
+	if((ExistsMoveBall() && isTitleClick) || isViewEnable) {
 		D3DXMatrixRotationY(&matWorld, (float)(90.0f * M_PI / 180.0f));
 		g_pd3dDevice->SetTransform(D3DTS_WORLD, &matWorld);
 
@@ -342,9 +356,11 @@ BOOL RenderDirect3D()
 	(g_diMouseState.rgbButtons[1] & 0x80) ? MState.rButton = true : MState.rButton = false;
 	(g_diMouseState.rgbButtons[2] & 0x80) ? MState.cButton = true : MState.cButton = false;
 
-	if (!isTitleClick && !isResult) {
+	if (!isTitleClick && !isResult && !isTutorial) {
 		TitleScene();
-	}else if(isTitleClick && !isResult){
+	}else if (isTitleClick && !isResult && isTutorial) {
+		TutorialScene();
+	}else if(isTitleClick && !isResult && !isTutorial){
 		GameScene();
 	}else {
 		ResultScene();

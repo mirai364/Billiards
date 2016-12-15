@@ -172,6 +172,7 @@
     <ClInclude Include="MyD3D.h" />
     <ClInclude Include="NKC_DInput.h" />
     <ClInclude Include="TitleScene.h" />
+    <ClInclude Include="TutorialScene.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

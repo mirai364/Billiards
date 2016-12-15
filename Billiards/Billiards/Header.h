@@ -54,9 +54,11 @@ BOOL	ExistsMoveBall();
 void	GameScene();
 void	TitleScene();
 void	ResultScene();
+void	TutorialScene();
 void	GameToResult();
 void	ResultToTitle();
 void	TitleToGame();
+void	TutorialToGame();
 
 
 
@@ -90,11 +92,16 @@ extern BYTE gl_KeyTbl[256];                 // キーボードの状態を格納
 LPDIRECT3D9             g_pD3D = NULL;
 LPDIRECT3DDEVICE9       g_pd3dDevice = NULL;
 LPD3DXFONT				g_pFont = NULL; //フォント
+LPD3DXSPRITE			g_pSprite = NULL;
+LPDIRECT3DTEXTURE9		g_pTexture = NULL;
+LPDIRECT3DTEXTURE9		g_pTexture2 = NULL;
 
 BOOL	isTitleClick;
 BOOL	isResult;
+BOOL	isTutorial;
 int		NextBallNumber;
 BOOL	isFirstConflict;
 BOOL	isClickAfter;
+BOOL	isViewEnable;
 
 

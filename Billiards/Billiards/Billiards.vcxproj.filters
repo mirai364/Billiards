@@ -71,5 +71,8 @@
     <ClInclude Include="GameScene.h">
       <Filter>Source Files\Scene</Filter>
     </ClInclude>
+    <ClInclude Include="TutorialScene.h">
+      <Filter>Source Files\Scene</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

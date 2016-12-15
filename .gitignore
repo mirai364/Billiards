@@ -1,8 +1,8 @@
 syntax:glob
- *.obj
- *.exe
+*.obj
+#*.exe
 *.exp
- *.dll
+*.dll
 *.user
 *.aps
 *.pch
@@ -15,15 +15,15 @@ syntax:glob
 *.tlh
 *.bak
 *.cache
- *.ilk
+*.ilk
 *.log
 *.zip
- [Dd]ebug*/
+[Dd]ebug*/
 *.lib
 *.sbr
 Thumbs.db
 [Ll]ib/
-[Rr]elease*/
+#[Rr]elease*/
 [Tt]est[Rr]esults/
 _UpgradeReport_Files/
 _ReSharper.*/
